@@ -199,7 +199,7 @@ function App() {
         <h1 className="text-4xl font-metal tracking-wider text-white mb-1">
           OZZY
         </h1>
-        <p className="text-neutral-400 text-sm">Voice Assistant</p>
+        <p className="text-neutral-400 text-sm">Tristan's servant</p>
       </header>
 
       {/* Main Avatar/Button Area */}
