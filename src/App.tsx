@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react';
 import { RetellWebClient } from 'retell-client-js-sdk';
 import './App.css';
 
-// Config from env
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://retell-frontend.onrender.com';
-const AGENT_ID = import.meta.env.VITE_AGENT_ID || '';
+const agentId = import.meta.env.VITE_AGENT_ID || '';
 
 interface RegisterCallResponse {
   access_token: string;
@@ -14,82 +13,113 @@ const retellWebClient = new RetellWebClient();
 
 function App() {
   const [isCalling, setIsCalling] = useState(false);
-  const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isCheckingMic, setIsCheckingMic] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
 
-  // Initialize the SDK
+  // Initialize the SDK - exact same as Henk
   useEffect(() => {
     retellWebClient.on('call_started', () => {
-      console.log('Call started');
-      setError(null);
+      console.log('call started');
+      setHasError(false);
+      setIsTransitioning(false);
+      setIsCheckingMic(false);
     });
 
     retellWebClient.on('call_ended', () => {
-      console.log('Call ended');
+      console.log('call ended');
       setIsCalling(false);
-      setIsAgentSpeaking(false);
+      setHasError(false);
+      setIsTransitioning(false);
+      setIsMuted(false);
     });
 
     retellWebClient.on('agent_start_talking', () => {
-      console.log('Agent speaking');
-      setIsAgentSpeaking(true);
+      console.log('agent_start_talking');
     });
 
     retellWebClient.on('agent_stop_talking', () => {
-      console.log('Agent stopped');
-      setIsAgentSpeaking(false);
+      console.log('agent_stop_talking');
     });
 
+    retellWebClient.on('audio', () => {});
+    retellWebClient.on('update', () => {});
+    retellWebClient.on('metadata', () => {});
+
     retellWebClient.on('error', (error) => {
-      console.error('Retell error:', error);
-      setError('Connection error. Please try again.');
+      console.error('An error occurred:', error);
+      setHasError(true);
       retellWebClient.stopCall();
       setIsCalling(false);
+      setIsTransitioning(false);
+      setIsCheckingMic(false);
     });
   }, []);
 
+  // Exact same mic check as Henk
+  const checkMicrophonePermission = async (): Promise<boolean> => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop());
+      return true;
+    } catch (error) {
+      console.error('Microfoon permissie geweigerd:', error);
+      return false;
+    }
+  };
+
+  // Exact same toggle as Henk
   const toggleConversation = async () => {
+    if (isTransitioning || isCheckingMic) return;
+
     if (isCalling) {
+      setIsTransitioning(true);
       retellWebClient.stopCall();
     } else {
-      setError(null);
       try {
-        // iOS requires AudioContext to be created from user gesture
-        // Create and immediately resume to "unlock" audio
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        await audioContext.resume();
-        audioContext.close();
-        
-        // Also request mic permission explicitly for iOS
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          stream.getTracks().forEach(track => track.stop());
-        } catch (micErr) {
-          console.error('Mic permission error:', micErr);
-          setError('Microphone access denied. Please allow in Settings.');
+        setIsCheckingMic(true);
+        const hasMicPermission = await checkMicrophonePermission();
+
+        if (!hasMicPermission) {
+          setHasError(true);
+          setIsCheckingMic(false);
           return;
         }
-        
-        const registerCallResponse = await registerCall(AGENT_ID);
+
+        setIsTransitioning(true);
+        setHasError(false);
+        const registerCallResponse = await registerCall(agentId);
         if (registerCallResponse.access_token) {
           await retellWebClient.startCall({
             accessToken: registerCallResponse.access_token,
           });
           setIsCalling(true);
         }
-      } catch (err) {
-        console.error('Failed to start call:', err);
-        setError('Failed to connect. Check microphone permissions.');
+      } catch (error) {
+        console.error('Failed to start call:', error);
+        setHasError(true);
+        setIsTransitioning(false);
       }
+      setIsCheckingMic(false);
+    }
+  };
+
+  const toggleMute = () => {
+    if (!isCalling) return;
+    if (isMuted) {
+      retellWebClient.unmute();
+      setIsMuted(false);
+    } else {
+      retellWebClient.mute();
+      setIsMuted(true);
     }
   };
 
   async function registerCall(agentId: string): Promise<RegisterCallResponse> {
     const response = await fetch(`${BACKEND_URL}/create-web-call`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ agent_id: agentId }),
     });
 
@@ -99,6 +129,14 @@ function App() {
 
     return response.json();
   }
+
+  const getStatusText = () => {
+    if (isCheckingMic) return 'Checking microphone...';
+    if (isTransitioning) return 'Connecting...';
+    if (hasError) return 'Microphone permission denied';
+    if (isCalling) return 'Listening...';
+    return 'Tap to summon Ozzy';
+  };
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-4">
@@ -110,48 +148,47 @@ function App() {
 
       {/* Main Button */}
       <div className="relative mb-8">
-        {/* Glow effect when speaking */}
         {isCalling && (
-          <div 
-            className={`absolute inset-0 rounded-full transition-all duration-500 ${
-              isAgentSpeaking 
-                ? 'bg-purple-600/30 scale-150' 
-                : 'bg-green-500/20 scale-125'
-            }`} 
-            style={{ filter: 'blur(30px)' }} 
-          />
+          <>
+            <div className="absolute inset-0 rounded-full bg-green-500/20 scale-150 animate-pulse" style={{ filter: 'blur(30px)' }} />
+            <div className="absolute inset-0 rounded-full border-2 border-green-500/30 scale-125 animate-ping" />
+          </>
         )}
         
         <button
           onClick={toggleConversation}
+          disabled={isTransitioning || isCheckingMic}
           className={`
             relative w-40 h-40 rounded-full
             bg-white/5 backdrop-blur-xl border border-white/10
             flex items-center justify-center
             transition-all duration-300 transform
             hover:scale-105 active:scale-95
-            ${isCalling && isAgentSpeaking ? 'ring-4 ring-purple-600/50' : ''}
-            ${isCalling && !isAgentSpeaking ? 'ring-4 ring-green-500/50' : ''}
+            disabled:opacity-50 disabled:cursor-wait
+            ${hasError ? 'ring-4 ring-red-500/50' : ''}
+            ${isCalling ? 'ring-4 ring-green-500/50' : ''}
           `}
         >
-          <span className="text-6xl">🦇</span>
+          <span className="text-6xl">{isCheckingMic || isTransitioning ? '⏳' : '🦇'}</span>
         </button>
       </div>
 
       {/* Status */}
-      <p className={`text-lg mb-4 ${error ? 'text-red-500' : 'text-neutral-400'}`}>
-        {error || (isCalling 
-          ? (isAgentSpeaking ? 'Ozzy is speaking...' : 'Listening...') 
-          : 'Tap to summon Ozzy')}
+      <p className={`text-lg mb-6 ${hasError ? 'text-red-400' : 'text-neutral-400'}`}>
+        {getStatusText()}
       </p>
 
-      {/* Stop button when calling */}
+      {/* Mute button during call */}
       {isCalling && (
         <button
-          onClick={toggleConversation}
-          className="px-6 py-3 rounded-xl bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600/30 transition-all"
+          onClick={toggleMute}
+          className={`px-6 py-3 rounded-xl transition-all ${
+            isMuted 
+              ? 'bg-red-600/20 text-red-400 border border-red-600/30' 
+              : 'bg-white/5 border border-white/10 hover:bg-white/10'
+          }`}
         >
-          End Call
+          {isMuted ? '🔇 Unmute' : '🔊 Mute'}
         </button>
       )}
 
