@@ -108,12 +108,31 @@ function App() {
 
         setIsTransitioning(true);
         setHasError(false);
+        setDebugStep('fetching-token');
+        
         const registerCallResponse = await registerCall(agentId);
+        setDebugStep('got-token');
+        
         if (registerCallResponse.access_token) {
-          await retellWebClient.startCall({
-            accessToken: registerCallResponse.access_token,
-          });
-          setIsCalling(true);
+          setDebugStep('starting-call');
+          try {
+            await retellWebClient.startCall({
+              accessToken: registerCallResponse.access_token,
+            });
+            setDebugStep('call-started');
+            setIsCalling(true);
+          } catch (startErr: any) {
+            console.error('startCall error:', startErr);
+            setErrorDetail('startCall: ' + (startErr?.message || startErr?.toString() || JSON.stringify(startErr)));
+            setDebugStep('startCall-failed');
+            setHasError(true);
+            setIsTransitioning(false);
+            setIsCheckingMic(false);
+            return;
+          }
+        } else {
+          setErrorDetail('No access token received');
+          setDebugStep('no-token');
         }
       } catch (error: any) {
         console.error('Failed to start call:', error);
