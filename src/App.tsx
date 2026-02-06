@@ -17,6 +17,7 @@ function App() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isCheckingMic, setIsCheckingMic] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [errorDetail, setErrorDetail] = useState<string>('');
 
   // Initialize the SDK - exact same as Henk
   useEffect(() => {
@@ -56,8 +57,6 @@ function App() {
       setIsCheckingMic(false);
     });
   }, []);
-
-  const [errorDetail, setErrorDetail] = useState<string>('');
 
   // Mic check with detailed error
   const checkMicrophonePermission = async (): Promise<boolean> => {
@@ -189,10 +188,10 @@ function App() {
         {getStatusText()}
       </p>
       
-      {/* Error detail for debugging */}
-      {errorDetail && (
+      {/* Error detail for debugging - always show if hasError */}
+      {hasError && (
         <p className="text-xs text-red-300 mb-4 max-w-xs text-center break-all">
-          {errorDetail}
+          Error: {errorDetail || 'unknown (no detail captured)'}
         </p>
       )}
 
