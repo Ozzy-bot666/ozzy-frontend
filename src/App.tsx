@@ -87,11 +87,32 @@ function App() {
     return response.json();
   };
 
+  // Request microphone permission explicitly (needed for iOS)
+  const requestMicPermission = async (): Promise<boolean> => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Stop the stream immediately, we just needed to trigger the permission
+      stream.getTracks().forEach(track => track.stop());
+      return true;
+    } catch (err) {
+      console.error('Microphone permission denied:', err);
+      return false;
+    }
+  };
+
   // Start call
   const startCall = async () => {
     try {
       setStatus('connecting');
       setError(null);
+      
+      // Request mic permission first (iOS requires this)
+      const hasPermission = await requestMicPermission();
+      if (!hasPermission) {
+        setError('Microphone access denied. Please allow microphone in your browser settings.');
+        setStatus('error');
+        return;
+      }
       
       const { access_token } = await registerCall();
       
