@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Apple-like smooth scrolling */
 html {
@@ -9,7 +11,8 @@ html {
 
 /* Base dark theme */
 body {
-  @apply bg-neutral-950 text-white;
+  background-color: #0a0a0a;
+  color: white;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-image: 
     radial-gradient(ellipse at top, rgba(42, 42, 42, 0.5) 0%, transparent 50%),
@@ -33,12 +36,19 @@ body::before {
 
 /* Glassmorphism cards */
 .glass {
-  @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
 }
 
 /* Pulsing ring animation */
 .pulse-ring {
-  @apply absolute inset-0 rounded-full border-2 border-red-600/50;
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid rgba(220, 38, 38, 0.5);
   animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
@@ -55,4 +65,10 @@ body::before {
     transform: scale(1);
     opacity: 0.5;
   }
+}
+
+/* Wave bar animation */
+.wave-bar {
+  border-radius: 9999px;
+  transition: transform 75ms;
 }
