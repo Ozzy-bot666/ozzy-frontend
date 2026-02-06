@@ -54,6 +54,22 @@ function App() {
     } else {
       setError(null);
       try {
+        // iOS requires AudioContext to be created from user gesture
+        // Create and immediately resume to "unlock" audio
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        await audioContext.resume();
+        audioContext.close();
+        
+        // Also request mic permission explicitly for iOS
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach(track => track.stop());
+        } catch (micErr) {
+          console.error('Mic permission error:', micErr);
+          setError('Microphone access denied. Please allow in Settings.');
+          return;
+        }
+        
         const registerCallResponse = await registerCall(AGENT_ID);
         if (registerCallResponse.access_token) {
           await retellWebClient.startCall({
