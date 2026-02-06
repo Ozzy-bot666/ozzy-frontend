@@ -18,6 +18,7 @@ function App() {
   const [isCheckingMic, setIsCheckingMic] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [errorDetail, setErrorDetail] = useState<string>('');
+  const [debugStep, setDebugStep] = useState<string>('idle');
 
   // Initialize the SDK - exact same as Henk
   useEffect(() => {
@@ -48,8 +49,9 @@ function App() {
     retellWebClient.on('update', () => {});
     retellWebClient.on('metadata', () => {});
 
-    retellWebClient.on('error', (error) => {
-      console.error('An error occurred:', error);
+    retellWebClient.on('error', (error: any) => {
+      console.error('Retell SDK error:', error);
+      setErrorDetail('SDK: ' + (error?.message || error?.toString() || JSON.stringify(error)));
       setHasError(true);
       retellWebClient.stopCall();
       setIsCalling(false);
@@ -60,21 +62,26 @@ function App() {
 
   // Mic check with detailed error
   const checkMicrophonePermission = async (): Promise<boolean> => {
+    setDebugStep('mic-check-start');
     try {
       // Check if mediaDevices is available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setErrorDetail('mediaDevices not supported');
+        setErrorDetail('Mic: mediaDevices not supported');
+        setDebugStep('mic-no-api');
         return false;
       }
       
+      setDebugStep('mic-requesting');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setDebugStep('mic-got-stream');
       stream.getTracks().forEach(track => track.stop());
-      setErrorDetail('');
+      setDebugStep('mic-ok');
       return true;
     } catch (error: any) {
-      const errorMsg = error?.name + ': ' + error?.message;
+      const errorMsg = 'Mic: ' + error?.name + ': ' + error?.message;
       console.error('Mic error:', errorMsg);
       setErrorDetail(errorMsg);
+      setDebugStep('mic-error');
       return false;
     }
   };
@@ -92,6 +99,8 @@ function App() {
         const hasMicPermission = await checkMicrophonePermission();
 
         if (!hasMicPermission) {
+          // errorDetail already set in checkMicrophonePermission
+          if (!errorDetail) setErrorDetail('Mic check returned false');
           setHasError(true);
           setIsCheckingMic(false);
           return;
@@ -106,8 +115,9 @@ function App() {
           });
           setIsCalling(true);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to start call:', error);
+        setErrorDetail('Call: ' + (error?.message || error?.toString() || 'unknown'));
         setHasError(true);
         setIsTransitioning(false);
       }
@@ -188,10 +198,13 @@ function App() {
         {getStatusText()}
       </p>
       
+      {/* Debug info */}
+      <p className="text-xs text-neutral-500 mb-2">Step: {debugStep}</p>
+      
       {/* Error detail for debugging - always show if hasError */}
       {hasError && (
         <p className="text-xs text-red-300 mb-4 max-w-xs text-center break-all">
-          Error: {errorDetail || 'unknown (no detail captured)'}
+          {errorDetail || 'unknown (no detail captured)'}
         </p>
       )}
 
