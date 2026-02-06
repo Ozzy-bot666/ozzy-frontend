@@ -57,14 +57,25 @@ function App() {
     });
   }, []);
 
-  // Exact same mic check as Henk
+  const [errorDetail, setErrorDetail] = useState<string>('');
+
+  // Mic check with detailed error
   const checkMicrophonePermission = async (): Promise<boolean> => {
     try {
+      // Check if mediaDevices is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setErrorDetail('mediaDevices not supported');
+        return false;
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach(track => track.stop());
+      setErrorDetail('');
       return true;
-    } catch (error) {
-      console.error('Microfoon permissie geweigerd:', error);
+    } catch (error: any) {
+      const errorMsg = error?.name + ': ' + error?.message;
+      console.error('Mic error:', errorMsg);
+      setErrorDetail(errorMsg);
       return false;
     }
   };
@@ -174,9 +185,16 @@ function App() {
       </div>
 
       {/* Status */}
-      <p className={`text-lg mb-6 ${hasError ? 'text-red-400' : 'text-neutral-400'}`}>
+      <p className={`text-lg mb-4 ${hasError ? 'text-red-400' : 'text-neutral-400'}`}>
         {getStatusText()}
       </p>
+      
+      {/* Error detail for debugging */}
+      {errorDetail && (
+        <p className="text-xs text-red-300 mb-4 max-w-xs text-center break-all">
+          {errorDetail}
+        </p>
+      )}
 
       {/* Mute button during call */}
       {isCalling && (
