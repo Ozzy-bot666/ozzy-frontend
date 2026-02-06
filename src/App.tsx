@@ -281,33 +281,31 @@ function App() {
           </div>
         )}
 
-        {/* Mode Toggle */}
-        {status === 'connected' && (
-          <div className="glass p-1 flex gap-1 mb-6">
-            <button
-              onClick={() => switchMode('continuous')}
-              className={`px-4 py-2 rounded-xl text-sm transition-all ${
-                talkMode === 'continuous' 
-                  ? 'bg-neutral-800 text-white' 
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              🔊 Continuous
-            </button>
-            <button
-              onClick={() => switchMode('push-to-talk')}
-              className={`px-4 py-2 rounded-xl text-sm transition-all ${
-                talkMode === 'push-to-talk' 
-                  ? 'bg-neutral-800 text-white' 
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              🎤 Push to Talk
-            </button>
-          </div>
-        )}
+        {/* Mode Toggle - Always visible */}
+        <div className="glass p-1 flex gap-1 mb-6">
+          <button
+            onClick={() => switchMode('continuous')}
+            className={`px-4 py-2 rounded-xl text-sm transition-all ${
+              talkMode === 'continuous' 
+                ? 'bg-neutral-800 text-white' 
+                : 'text-neutral-400 hover:text-white'
+            }`}
+          >
+            🔊 Continuous
+          </button>
+          <button
+            onClick={() => switchMode('push-to-talk')}
+            className={`px-4 py-2 rounded-xl text-sm transition-all ${
+              talkMode === 'push-to-talk' 
+                ? 'bg-neutral-800 text-white' 
+                : 'text-neutral-400 hover:text-white'
+            }`}
+          >
+            🎤 Push to Talk
+          </button>
+        </div>
 
-        {/* Mute Button */}
+        {/* Mute Button - visible during call in continuous mode */}
         {status === 'connected' && talkMode === 'continuous' && (
           <button
             onClick={toggleMute}
